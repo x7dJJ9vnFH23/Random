@@ -1,0 +1,112 @@
+local camera = workspace.CurrentCamera
+local runService = game:GetService("RunService")
+local players = game:GetService("Players")
+local player = players.LocalPlayer
+
+local hasDrawing = pcall(function() return Drawing.new("Text") end)
+
+local fallbackGui = nil
+local fallbackLabels = {}
+
+local function createFallbackGui()
+    if fallbackGui then 
+        return fallbackGui 
+    end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ESPGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player: WaitForChild("PlayerGui")
+    
+    fallbackGui = screenGui
+    return screenGui
+end
+
+local function createFallbackLabel(displayText, part)
+    local gui = createFallbackGui()
+    
+    local label = Instance. new("TextLabel")
+    label.Name = "ESPLabel_" .. part. Name
+    label.Size = UDim2.new(0, 100, 0, 20)
+    label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    label.BackgroundTransparency = 0.3
+    label.TextColor3 = Color3.fromRGB(0, 230, 0)
+    label.TextSize = 14
+    label.TextStrokeTransparency = 0.5
+    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    label.Text = displayText or "Hitbox"
+    label.Parent = gui
+    
+    fallbackLabels[part] = label
+    return label
+end
+
+local function highlightespbruh(part, displayText)
+    if not part then 
+        return 
+    end
+    
+    if hasDrawing then
+        local label = Drawing.new("Text")
+        label.Text = displayText or "Hitbox"
+        label.Color = Color3.fromRGB(0, 230, 0)
+        label.Size = 16
+        label.Center = true
+        label.Outline = true
+        label.OutlineColor = Color3.fromRGB(0, 0, 0)
+        label.Visible = false
+        label.Font = 2
+        
+        local connection
+        connection = runService.RenderStepped:Connect(function()
+            if part and part.Parent then
+                local screenPos, isOnScreen = camera:WorldToViewportPoint(part:GetPivot().Position)
+                label.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
+                label.Visible = isOnScreen
+            else
+                label.Visible = false
+                if connection then 
+                    connection: Disconnect() 
+                end
+                pcall(function() label:Remove() end)
+            end
+        end)
+    else
+        local label = createFallbackLabel(displayText, part)
+        
+        local connection
+        connection = runService.RenderStepped:Connect(function()
+            if part and part.Parent and label and label.Parent then
+                local screenPos, isOnScreen = camera: WorldToViewportPoint(part: GetPivot().Position)
+                label.Position = UDim2.new(0, screenPos.X - 50, 0, screenPos.Y - 35)
+                label.Visible = isOnScreen
+            else
+                label.Visible = false
+                if connection then 
+                    connection: Disconnect() 
+                end
+                if label then 
+                    label:Destroy() 
+                end
+                fallbackLabels[part] = nil
+            end
+        end)
+    end
+end
+
+local function cleardrawcache()
+    if hasDrawing then
+        cleardrawcache()
+    else
+        for part, label in pairs(fallbackLabels) do
+            if label then 
+                label:Destroy() 
+            end
+        end
+        fallbackLabels = {}
+    end
+end
+
+getgenv().highlightespbruh = highlightespbruh
+getgenv().cleardrawcache = cleardrawcache
+getgenv().HasDrawingLib = hasDrawing
